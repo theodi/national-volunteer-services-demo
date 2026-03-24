@@ -1,26 +1,140 @@
+@import url("https://fonts.googleapis.com/css2?family=Sora:wght@100..800&display=swap");
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Brand */
+  --primary: #7c4dff;
+  --primary-light: #ede5ff;
+
+  /* Base */
+  --foreground: #ffffff;
+  --font-sora: "Sora", sans-serif;
+ 
 }
 
 @theme inline {
-  --color-background: var(--background);
+  /* Brand */
+  --color-primary: var(--primary);
+  --color-primary-light: var(--primary-light);
+
+  /* Base */
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-cosmos: #1d293d;
+  --color-bold-grey: #666666;
+  --color-tranquil-black: #364153;
+  --color-sparkling-silver: #E2E8F0;
+  --color-white-marble: #E5E7EB;
+  --color-titanium-white: #F3F4F6;
+  --color-himalayan-white: #F4F8FB;
+  --color-hydrocarbon: #4A5565;
+  --color-earth-blue: #1D70B8;
+  --color-blue-light: #3F86C3;
+  --color-blue-custom: #003078;
+  --color-green-deep: #00823B;
+  --color-lavender: #E4DBFE;
+  --color-light-lavender: #FAF5FF;
+  --color-rose-lilac: #E9D4FF;
+  --color-mystic-white: #F6EDFF;
+  --color-blue-grey: #D1D5DC;
+
+  /* Fonts */
+  --font-sans: var(--font-app);
+  --font-sora: var(--font-sora);
+  --font-mono: ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* NVS font: Sora with optical sizing and normal style */
+.font-sora {
+  font-family: var(--font-sora);
+  font-optical-sizing: auto;
+  font-style: normal;
+  font-weight: 400;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: white;
+  color: var(--color-tranquil-black);
+  font-family: var(--font-sans), sans-serif;
+}
+
+/* Slim scrollbar with primary light */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--primary) 50%, transparent) white;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: white;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--primary-light);
+  border-radius: 3px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--primary-light) 80%, var(--primary));
+}
+
+/* Hide scrollbar on mobile */
+@media (max-width: 767px) {
+  * {
+    scrollbar-width: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Hide scrollbar for horizontal collection scroll */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Modal enter animation (CSS-only) */
+@keyframes modal-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-panel-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.modal-backdrop {
+  animation: modal-backdrop-in 0.2s ease-out forwards;
+}
+
+.modal-panel {
+  animation: modal-panel-in 0.25s ease-out forwards;
+}
+
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground: #f1f5f9;
+  }
+  body {
+    background: #0f172a;
+  }
 }
