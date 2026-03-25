@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useSolidAuth } from "@ldo/solid-react";
 import { Button } from "@/app/components/Button";
 import { HeroText } from "@/app/components/HeroText";
 import { TagList } from "@/app/components/TagList";
@@ -25,9 +26,25 @@ const ATTRIBUTE_TAGS = [
 
 export function NVSVolunteerLanding() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { session } = useSolidAuth();
   const [isPodModalOpen, setIsPodModalOpen] = useState(false);
   const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+
+  // After login redirect: if ?showEmergencyModal=true and user is logged in,
+  // auto-open the emergency contact modal and advance to step 2.
+  useEffect(() => {
+    if (
+      session.isLoggedIn &&
+      searchParams.get("showEmergencyModal") === "true"
+    ) {
+      setCurrentStep(2);
+      setIsEmergencyModalOpen(true);
+      // Clean the query param from the URL without a full navigation
+      router.replace("/", { scroll: false });
+    }
+  }, [session.isLoggedIn, searchParams, router]);
 
   const handleCompleteToOpportunities = () => {
     setCurrentStep(3);

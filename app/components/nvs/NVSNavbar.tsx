@@ -2,22 +2,31 @@
 
 import { StarIcon } from "@heroicons/react/24/solid";
 import Link from "next/link";
+import { useUserProfile } from "@/app/lib/hooks/useUserProfile";
 
 interface NVSNavbarProps {
   title?: string;
   subtitle?: string;
-  showUser?: boolean;
-  userName?: string;
-  userInitials?: string;
 }
 
 export function NVSNavbar({
   title = "National Volunteer Services",
   subtitle = "Powered by Solid Pod Technology",
-  showUser = true,
-  userName = "Alex Morgan",
-  userInitials = "AM",
 }: NVSNavbarProps) {
+  const { profile } = useUserProfile();
+
+  const isLoggedIn = !!profile?.webId;
+  const displayName = profile?.name || null;
+  const initials = displayName
+    ? displayName
+        .split(" ")
+        .filter(Boolean)
+        .map((w) => w[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : null;
+
   return (
     <header className="w-full shrink-0 font-sora">
       {/* Top bar – GOV.UK branding */}
@@ -51,16 +60,16 @@ export function NVSNavbar({
             {subtitle}
           </p>
         </div>
-        {showUser && (
+        {isLoggedIn && displayName && (
           <div className="flex items-center gap-2 text-white">
             <span className="text-xs sm:text-sm font-normal">
-              Logged in as {userName}
+              Logged in as {displayName}
             </span>
             <div
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-sm font-bold text-earth-blue"
               aria-hidden
             >
-              {userInitials}
+              {initials}
             </div>
           </div>
         )}

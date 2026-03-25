@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { CheckCircleIcon } from "@heroicons/react/24/solid";
 import { Button } from "@/app/components/Button";
 import { ModalWrapper } from "@/app/components/ModalWrapper";
@@ -38,9 +39,12 @@ export function PodAccessPermissionModal({
   onAllow,
   onDecline,
 }: PodAccessPermissionModalProps) {
+  const router = useRouter();
+
   const handleAllow = () => {
     onAllow?.();
     onClose();
+    router.push("/login");
   };
 
   const handleDecline = () => {
