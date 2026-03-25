@@ -130,11 +130,11 @@ body {
 }
 
 
-@media (prefers-color-scheme: dark) {
+/* @media (prefers-color-scheme: dark) {
   :root {
     --foreground: #f1f5f9;
   }
   body {
     background: #0f172a;
   }
-}
+} */
