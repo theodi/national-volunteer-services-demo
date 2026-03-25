@@ -10,6 +10,7 @@ import { TagList } from "@/app/components/TagList";
 import { PodAccessPermissionModal } from "./PodAccessPermissionModal";
 import { EmergencyContactPermissionModal } from "./EmergencyContactPermissionModal";
 import { StepProgress } from "@/app/components/StepProgress";
+import { ModalWrapper } from "@/app/components/ModalWrapper";
 
 const STEPS = [
   { id: 1, label: "Share Pod" },
@@ -27,10 +28,15 @@ const ATTRIBUTE_TAGS = [
 export function NVSVolunteerLanding() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { session } = useSolidAuth();
+  const { session, ranInitialAuthCheck = true } = useSolidAuth();
   const [isPodModalOpen, setIsPodModalOpen] = useState(false);
   const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+
+  // True while the OAuth callback is still being processed by @ldo/solid-react.
+  const isOAuthCallback =
+    (searchParams.has("code") || searchParams.has("state")) &&
+    !ranInitialAuthCheck;
 
   // After login redirect: if ?showEmergencyModal=true and user is logged in,
   // auto-open the emergency contact modal and advance to step 2.
@@ -120,6 +126,18 @@ export function NVSVolunteerLanding() {
         onOptIn={handleCompleteToOpportunities}
         onSearchOnly={handleCompleteToOpportunities}
       />
+
+      {/* Overlay while OAuth callback is being processed */}
+      <ModalWrapper isOpen={isOAuthCallback} onClose={() => {}}>
+        <div className="flex flex-col items-center gap-4 p-8">
+          <div className="relative h-10 w-10">
+            <div className="absolute inset-0 animate-spin rounded-full border-[3px] border-earth-blue/20 border-t-earth-blue" />
+          </div>
+          <p className="text-sm font-medium text-blue-custom">
+            Accessing your Pod…
+          </p>
+        </div>
+      </ModalWrapper>
     </main>
   );
 }
