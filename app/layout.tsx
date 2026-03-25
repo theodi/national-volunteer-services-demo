@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { SolidProviders } from "./providers";
-import { NVSNavbar } from "@/app/components/nvs/NVSNavbar";
-import { NVSFooter } from "@/app/components/nvs/NVSFooter";
+import { NVSShell } from "@/app/components/nvs/NVSShell";
 
 export const metadata: Metadata = {
   title: "National Volunteer Services",
@@ -19,9 +18,7 @@ export default function RootLayout({
     <html lang="en" className="antialiased">
       <body className="flex min-h-screen flex-col bg-white font-sora">
         <SolidProviders>
-          <NVSNavbar />
-          <main className="min-h-0 flex-1">{children}</main>
-          <NVSFooter />
+          <NVSShell>{children}</NVSShell>
         </SolidProviders>
       </body>
     </html>
