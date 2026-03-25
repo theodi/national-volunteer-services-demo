@@ -1,6 +1,6 @@
 "use client";
 
-export function LoadingScreen() {
+export function LoadingScreen({ message = "Loading…" }: { message?: string }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-white">
       <div className="flex flex-col items-center gap-4">
@@ -8,7 +8,7 @@ export function LoadingScreen() {
           <div className="absolute inset-0 animate-spin rounded-full border-[3px] border-earth-blue/20 border-t-earth-blue" />
         </div>
         <p className="text-sm font-medium text-tranquil-black/60">
-          Loading…
+          {message}
         </p>
       </div>
     </div>

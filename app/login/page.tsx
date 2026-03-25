@@ -5,6 +5,14 @@ import { SolidLoginPage } from "solid-react-component/login/next";
 
 export default function LoginPage() {
   const router = useRouter();
+
+  // Build the redirect URL so the IdP sends the user straight back to "/"
+  // with the query param that triggers the EmergencyContactPermissionModal.
+  const redirectUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/?showEmergencyModal=true`
+      : undefined;
+
   return (
     <>
       {/* Override the default purple theme with GOV.UK colours */}
@@ -33,6 +41,7 @@ export default function LoginPage() {
       `}</style>
 
       <SolidLoginPage
+        redirectUrl={redirectUrl}
         onAlreadyLoggedIn={() => router.replace("/?showEmergencyModal=true")}
         logo="/Gov-UK-logo.png"
         logoAlt="GOV.UK Logo"
