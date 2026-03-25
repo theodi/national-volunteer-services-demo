@@ -33,7 +33,7 @@ export function EmergencyContactPermissionModal({
   return (
     <ModalWrapper
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={() => {}}
       className="max-w-[580px]! w-full p-5 sm:p-10"
     >
       <main className="w-full flex flex-col gap-10">
