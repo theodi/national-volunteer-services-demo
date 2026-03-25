@@ -99,7 +99,7 @@ export function PodAccessPermissionModal({
             onClick={handleAllow}
             className="w-full sm:w-auto rounded-none!"
           >
-            Allow Access
+            Request Access
           </Button>
           <Button
             variant="secondary"
