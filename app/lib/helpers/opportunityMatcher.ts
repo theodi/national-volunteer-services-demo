@@ -142,7 +142,14 @@ export function scoreOpportunity(
   locationLabel: string,
   searchRadiusMetres: number,
 ): MatchedOpportunity {
-  const haystack = `${opp.title} ${opp.description}`.toLowerCase();
+  // Build a combined haystack from title, description AND org description.
+  // The API activities have no structured skill/cause tags — matching relies
+  // entirely on free-text keyword search, so we want every available text.
+  const haystack = [
+    opp.title,
+    opp.description,
+    opp.organisationDescription ?? "",
+  ].join(" ").toLowerCase();
 
   // Collect all matches across categories
   const skillMatches = matchIrisAgainstText(haystack, profile.skillIris, "skill");
