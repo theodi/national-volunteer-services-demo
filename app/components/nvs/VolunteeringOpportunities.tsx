@@ -8,6 +8,7 @@ import { LoadingScreen } from "@/app/components/LoadingScreen";
 
 export function VolunteeringOpportunities() {
   const { opportunities, isLoading, error, noLocations } = useOpportunities();
+  console.log("Opportunities data:", { opportunities, isLoading, error, noLocations });
 
   return (
     <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-6 px-5 py-8 sm:px-10 sm:py-12">
