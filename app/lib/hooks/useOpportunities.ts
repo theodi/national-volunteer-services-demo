@@ -101,19 +101,26 @@ async function fetchAndScoreAll(
     }),
   );
 
-  // Merge all results, deduplicate by opportunity ID (keep highest score)
-  const bestById = new Map<string, MatchedOpportunity>();
+  // Merge all results, deduplicate by title + org name (the API often
+  // returns the same opportunity with different activity IDs for
+  // different locations). Keep the instance nearest to the user.
+  const bestByKey = new Map<string, MatchedOpportunity>();
   for (const batch of perLocation) {
     for (const matched of batch) {
-      const existing = bestById.get(matched.opportunity.id);
-      if (!existing || matched.matchScore > existing.matchScore) {
-        bestById.set(matched.opportunity.id, matched);
+      const dedupKey =
+        `${matched.opportunity.title.trim().toLowerCase()}::${matched.opportunity.organisationName.trim().toLowerCase()}`;
+      const existing = bestByKey.get(dedupKey);
+      if (
+        !existing ||
+        matched.opportunity.distanceMetres < existing.opportunity.distanceMetres
+      ) {
+        bestByKey.set(dedupKey, matched);
       }
     }
   }
 
   // Final sort: score descending, then distance ascending
-  return [...bestById.values()].sort((a, b) => {
+  return [...bestByKey.values()].sort((a, b) => {
     if (b.matchScore !== a.matchScore) return b.matchScore - a.matchScore;
     return a.opportunity.distanceMetres - b.opportunity.distanceMetres;
   });
