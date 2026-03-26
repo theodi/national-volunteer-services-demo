@@ -28,7 +28,7 @@ export function NVSNavbar({
     : null;
 
   return (
-    <header className="w-full shrink-0 font-sora">
+    <header className="sticky top-0 z-50 w-full shrink-0 font-sora">
       {/* Top bar – GOV.UK branding */}
       <div
         className="w-full flex items-center px-4 sm:px-8 lg:px-15 py-2.5 bg-earth-blue border-b-2 border-b-white"
