@@ -1,14 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import { OpportunitiesFilterTags } from "./opportunities/OpportunitiesFilterTags";
 import { OpportunitiesHeaderSection } from "./opportunities/OpportunitiesHeaderSection";
 import { OpportunityCard } from "./opportunities/OpportunityCard";
+import { OpportunityDetailModal } from "./opportunities/OpportunityDetailModal";
 import { useOpportunities } from "@/app/lib/hooks/useOpportunities";
 import { LoadingScreen } from "@/app/components/LoadingScreen";
+import type { MatchedOpportunity } from "@/app/lib/helpers/opportunityMatcher";
 
 export function VolunteeringOpportunities() {
   const { opportunities, isLoading, error, noLocations } = useOpportunities();
-  console.log("Opportunities data:", { opportunities, isLoading, error, noLocations });
+
+  // Modal state — which opportunity is currently open (null = closed)
+  const [selectedOpp, setSelectedOpp] = useState<MatchedOpportunity | null>(null);
 
   return (
     <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-6 px-5 py-8 sm:px-10 sm:py-12">
@@ -90,9 +95,34 @@ export function VolunteeringOpportunities() {
                   ? () => window.open(matched.opportunity.applyLink!, "_blank")
                   : undefined
               }
+              onViewDetails={() => setSelectedOpp(matched)}
             />
           ))}
         </section>
+      )}
+
+      {/* Detail modal */}
+      {selectedOpp && (
+        <OpportunityDetailModal
+          open
+          onClose={() => setSelectedOpp(null)}
+          organisationName={selectedOpp.opportunity.organisationName}
+          matchScore={selectedOpp.matchScore}
+          roleTitle={selectedOpp.opportunity.title}
+          roleRegion={selectedOpp.locationLabel}
+          description={selectedOpp.opportunity.description}
+          roleHref={selectedOpp.opportunity.applyLink}
+          organisationDescription={selectedOpp.opportunity.organisationDescription}
+          organisationWebsite={selectedOpp.opportunity.organisationWebsite}
+          matchReasons={selectedOpp.matchReasons}
+          tags={selectedOpp.tags}
+          distanceText={selectedOpp.distanceText}
+          onApply={
+            selectedOpp.opportunity.applyLink
+              ? () => window.open(selectedOpp.opportunity.applyLink!, "_blank")
+              : undefined
+          }
+        />
       )}
     </div>
   );
