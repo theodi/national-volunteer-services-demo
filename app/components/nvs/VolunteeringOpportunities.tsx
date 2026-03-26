@@ -16,19 +16,21 @@ export function VolunteeringOpportunities() {
   const [selectedOpp, setSelectedOpp] = useState<MatchedOpportunity | null>(null);
 
   return (
-    <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-6 px-5 py-8 sm:px-10 sm:py-12">
-      <OpportunitiesHeaderSection
-        subtitle={
-          opportunities.length > 0
-            ? `${opportunities.length} opportunities matched from your Solid Pod profile`
-            : "Based on your live Solid Pod data"
-        }
-      />
-      <OpportunitiesFilterTags />
+    <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-6 px-5 py-8 sm:px-10 sm:py-12 over">
+      <div className="sticky top-[168px] z-30 -mx-5 bg-himalayan-white px-5 pb-1 pt-1 sm:-mx-10 sm:top-[164px] sm:px-10">
+        <OpportunitiesHeaderSection
+          subtitle={
+            opportunities.length > 0
+              ? `${opportunities.length} opportunities matched from your Solid Pod profile`
+              : "Based on your live Solid Pod data"
+          }
+        />
+        <OpportunitiesFilterTags />
+      </div>
 
       {/* Loading state */}
       {isLoading && (
-        <LoadingScreen message="Reading your Pod profile and finding opportunities…" />
+        <LoadingScreen className="min-h-[100px]! h-[300px]!" message="Reading your Pod profile and finding opportunities…" />
       )}
 
       {/* Error state */}
