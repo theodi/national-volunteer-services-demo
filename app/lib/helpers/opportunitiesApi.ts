@@ -103,17 +103,31 @@ function parseApiNumber(val: string): number {
   return Number.parseFloat(val);
 }
 
+/** Resolved organisation info. */
+interface OrgInfo {
+  name: string;
+  description?: string;
+  logoUrl?: string;
+  website?: string;
+}
+
 /** Normalise an ApiActivity into our internal Opportunity shape. */
-function normaliseActivity(activity: ApiActivity): Opportunity {
-  const org =
-    typeof activity.organisation === "string"
-      ? { name: "Unknown Organisation" }
-      : {
-          name: activity.organisation.name,
-          description: activity.organisation.description,
-          logoUrl: activity.organisation.image?.id,
-          website: activity.organisation.website,
-        };
+function normaliseActivity(
+  activity: ApiActivity,
+  orgLookup: Map<string, OrgInfo>,
+): Opportunity {
+  let org: OrgInfo;
+  if (typeof activity.organisation === "string") {
+    // Resolve from the lookup built from other activities in the same batch
+    org = orgLookup.get(activity.organisation) ?? { name: "Unknown Organisation" };
+  } else {
+    org = {
+      name: activity.organisation.name,
+      description: activity.organisation.description,
+      logoUrl: activity.organisation.image?.id,
+      website: activity.organisation.website,
+    };
+  }
 
   const locations: OpportunityLocation[] = [];
   for (const session of activity.session) {
@@ -173,7 +187,21 @@ export async function fetchOpportunities(
 
   const data: ApiResponse = await response.json();
 
+  // Build an org lookup from activities that have inline org objects,
+  // so we can resolve string references (org IDs) in other activities.
+  const orgLookup = new Map<string, OrgInfo>();
+  for (const activity of data.activities) {
+    if (typeof activity.organisation !== "string") {
+      orgLookup.set(activity.organisation.id, {
+        name: activity.organisation.name,
+        description: activity.organisation.description,
+        logoUrl: activity.organisation.image?.id,
+        website: activity.organisation.website,
+      });
+    }
+  }
+
   return data.activities
-    .map(normaliseActivity)
+    .map((activity) => normaliseActivity(activity, orgLookup))
     .sort((a, b) => a.distanceMetres - b.distanceMetres);
 }
