@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Button } from "../../Button";
+import { ExpandableText } from "../../ExpandableText";
 
 export interface MatchReason {
   text: string;
@@ -28,6 +29,8 @@ export interface OpportunityCardProps {
   isEmergency?: boolean;
   roleTitle: string;
   roleRegion: string;
+  /** Opportunity description — shown truncated with expand/collapse. */
+  description?: string;
   matchReasons: MatchReason[];
   tags: readonly string[];
   distanceText: string;
@@ -47,6 +50,7 @@ export function OpportunityCard({
   isEmergency,
   roleTitle,
   roleRegion,
+  description,
   matchReasons,
   tags,
   distanceText,
@@ -79,6 +83,19 @@ export function OpportunityCard({
         {roleTitle}
         {roleRegion ? ` — ${roleRegion}` : ""}
       </Link>
+
+      {description && (
+        <ExpandableText
+          truncated={
+            description.length > 120
+              ? `${description.slice(0, 120).trimEnd()}…`
+              : description
+          }
+          full={description}
+          className="text-xs leading-relaxed text-gray-600"
+          controlClassName="ml-1 text-xs font-medium text-earth-blue hover:underline cursor-pointer"
+        />
+      )}
 
       <div className="space-y-2.5">
         <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">

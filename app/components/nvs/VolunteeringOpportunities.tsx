@@ -80,6 +80,7 @@ export function VolunteeringOpportunities() {
               matchScore={matched.matchScore}
               roleTitle={matched.opportunity.title}
               roleRegion={matched.locationLabel}
+              description={matched.opportunity.description}
               matchReasons={matched.matchReasons}
               tags={matched.tags}
               distanceText={matched.distanceText}
