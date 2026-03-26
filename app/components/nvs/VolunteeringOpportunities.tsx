@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { OpportunitiesFilterTags } from "./opportunities/OpportunitiesFilterTags";
+import { useState, useMemo, useCallback } from "react";
+import { OpportunitiesFilterTags, FILTERS } from "./opportunities/OpportunitiesFilterTags";
 import { OpportunitiesHeaderSection } from "./opportunities/OpportunitiesHeaderSection";
 import { OpportunityCard } from "./opportunities/OpportunityCard";
 import { OpportunityDetailModal } from "./opportunities/OpportunityDetailModal";
@@ -12,20 +12,40 @@ import type { MatchedOpportunity } from "@/app/lib/helpers/opportunityMatcher";
 export function VolunteeringOpportunities() {
   const { opportunities, isLoading, error, noLocations } = useOpportunities();
 
-  // Modal state — which opportunity is currently open (null = closed)
   const [selectedOpp, setSelectedOpp] = useState<MatchedOpportunity | null>(null);
+  const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
+
+  const handleFilterToggle = useCallback((id: string) => {
+    setActiveFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const filteredOpportunities = useMemo(() => {
+    if (activeFilters.size === 0) return opportunities;
+    const activeDefs = FILTERS.filter((f) => activeFilters.has(f.id));
+    return opportunities.filter((opp) => activeDefs.some((f) => f.match(opp)));
+  }, [opportunities, activeFilters]);
 
   return (
     <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-6 px-5 py-8 sm:px-10 sm:py-12 over">
-      <div className="sticky top-[168px] z-30 -mx-5 bg-himalayan-white px-5 pb-1 pt-1 sm:-mx-10 sm:top-[164px] sm:px-10">
+      <div className="sticky top-[168px] z-30 -mx-5 bg-himalayan-white px-5 pb-1 pt-1 sm:-mx-10 sm:top-[164px] sm:px-10 space-y-5">
         <OpportunitiesHeaderSection
           subtitle={
             opportunities.length > 0
-              ? `${opportunities.length} opportunities matched from your Solid Pod profile`
+              ? activeFilters.size > 0
+                ? `Showing ${filteredOpportunities.length} of ${opportunities.length} opportunities`
+                : `${opportunities.length} opportunities matched from your Solid Pod profile`
               : "Based on your live Solid Pod data"
           }
         />
-        <OpportunitiesFilterTags />
+        <OpportunitiesFilterTags
+          selectedIds={activeFilters}
+          onToggle={handleFilterToggle}
+        />
       </div>
 
       {/* Loading state */}
@@ -77,10 +97,23 @@ export function VolunteeringOpportunities() {
         </div>
       )}
 
+      {/* Filters active but nothing matches */}
+      {!isLoading && !error && opportunities.length > 0 && filteredOpportunities.length === 0 && (
+        <div className="flex flex-col items-center gap-3 py-16 text-center">
+          <span className="text-3xl">🔍</span>
+          <h3 className="text-lg font-bold text-blue-custom">
+            No opportunities match your filters
+          </h3>
+          <p className="max-w-md text-sm text-gray-600">
+            Try removing some filters to see more results.
+          </p>
+        </div>
+      )}
+
       {/* Results grid */}
-      {!isLoading && !error && opportunities.length > 0 && (
+      {!isLoading && !error && filteredOpportunities.length > 0 && (
         <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {opportunities.map((matched) => (
+          {filteredOpportunities.map((matched) => (
             <OpportunityCard
               key={matched.opportunity.id}
               organisationName={matched.opportunity.organisationName}

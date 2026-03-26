@@ -1,14 +1,60 @@
 "use client";
 
 import { useState } from "react";
+import type { MatchedOpportunity } from "@/app/lib/helpers/opportunityMatcher";
 
-const FILTERS = [
-  { id: "nearby", label: "Nearby", icon: "📍" },
-  { id: "flexible", label: "Flexible Hours", icon: "⏰" },
-  { id: "first-aid", label: "First Aid", icon: "🏥" },
-  { id: "emergency", label: "Emergency Response", icon: "🚨" },
-  { id: "driving", label: "Driving Required", icon: "🚗" },
-] as const;
+const NEARBY_THRESHOLD_METRES = 8_047; // ~5 miles
+
+export interface FilterDef {
+  id: string;
+  label: string;
+  icon: string;
+  match: (opp: MatchedOpportunity) => boolean;
+}
+
+function textContains(opp: MatchedOpportunity, ...terms: string[]): boolean {
+  const haystack = [
+    opp.opportunity.title,
+    opp.opportunity.description,
+    opp.opportunity.organisationDescription ?? "",
+  ]
+    .join(" ")
+    .toLowerCase();
+  return terms.some((t) => haystack.includes(t));
+}
+
+export const FILTERS: FilterDef[] = [
+  {
+    id: "nearby",
+    label: "Nearby",
+    icon: "📍",
+    match: (opp) => opp.opportunity.distanceMetres <= NEARBY_THRESHOLD_METRES,
+  },
+  {
+    id: "flexible",
+    label: "Flexible Hours",
+    icon: "⏰",
+    match: (opp) => textContains(opp, "flexible"),
+  },
+  {
+    id: "first-aid",
+    label: "First Aid",
+    icon: "🏥",
+    match: (opp) => textContains(opp, "first aid", "first aider"),
+  },
+  {
+    id: "emergency",
+    label: "Emergency Response",
+    icon: "🚨",
+    match: (opp) => textContains(opp, "emergency"),
+  },
+  {
+    id: "driving",
+    label: "Driving Required",
+    icon: "🚗",
+    match: (opp) => textContains(opp, "driving", "driver"),
+  },
+];
 
 export interface OpportunitiesFilterTagsProps {
   /** When provided, component is controlled. Omit for uncontrolled with multi-select. */
