@@ -154,30 +154,36 @@ export function scoreOpportunity(
   // -----------------------------------------------------------------------
   // Component 1: Profile proportion (60 points max)
   // What fraction of the user's IRIs in each category matched?
+  // Uses a capped denominator (max 4 per category) so large profiles
+  // don't dilute scores — matching 1/10 skills is still meaningful.
   // Categories with 0 user IRIs redistribute their weight to the others.
   // -----------------------------------------------------------------------
   const RAW_WEIGHTS = { skills: 40, causes: 35, equipment: 25 };
+  const DENOMINATOR_CAP = 4; // Matching 4+ IRIs in a category = full score
 
   const categoryScores: { ratio: number; weight: number }[] = [];
 
   if (profile.skillIris.length > 0) {
     const uniqueMatched = new Set(skillMatches.map((m) => m.iri)).size;
+    const effectiveDenom = Math.min(profile.skillIris.length, DENOMINATOR_CAP);
     categoryScores.push({
-      ratio: uniqueMatched / profile.skillIris.length,
+      ratio: Math.min(1, uniqueMatched / effectiveDenom),
       weight: RAW_WEIGHTS.skills,
     });
   }
   if (profile.causeIris.length > 0) {
     const uniqueMatched = new Set(causeMatches.map((m) => m.iri)).size;
+    const effectiveDenom = Math.min(profile.causeIris.length, DENOMINATOR_CAP);
     categoryScores.push({
-      ratio: uniqueMatched / profile.causeIris.length,
+      ratio: Math.min(1, uniqueMatched / effectiveDenom),
       weight: RAW_WEIGHTS.causes,
     });
   }
   if (profile.equipmentIris.length > 0) {
     const uniqueMatched = new Set(equipmentMatches.map((m) => m.iri)).size;
+    const effectiveDenom = Math.min(profile.equipmentIris.length, DENOMINATOR_CAP);
     categoryScores.push({
-      ratio: uniqueMatched / profile.equipmentIris.length,
+      ratio: Math.min(1, uniqueMatched / effectiveDenom),
       weight: RAW_WEIGHTS.equipment,
     });
   }
@@ -195,10 +201,11 @@ export function scoreOpportunity(
   // -----------------------------------------------------------------------
   // Component 2: Keyword depth (25 points max)
   // Unique keyword hits (not IRIs — the actual text keywords that matched).
-  // Caps at 8 unique keywords for full score.
+  // Caps at 5 unique keywords for full score (lowered from 8 to reward
+  // even modest keyword breadth).
   // -----------------------------------------------------------------------
   const uniqueKeywords = new Set(allMatches.map((m) => m.matchedKeyword));
-  const depthScore = Math.min(25, (uniqueKeywords.size / 8) * 25);
+  const depthScore = Math.min(25, (uniqueKeywords.size / 5) * 25);
 
   // -----------------------------------------------------------------------
   // Component 3: Proximity bonus (15 points max)
