@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { OpportunitiesFilterTags, FILTERS } from "./opportunities/OpportunitiesFilterTags";
-import { OpportunitiesHeaderSection } from "./opportunities/OpportunitiesHeaderSection";
+import { OpportunitiesHeaderSection, type SortValue } from "./opportunities/OpportunitiesHeaderSection";
 import { OpportunityCard } from "./opportunities/OpportunityCard";
 import { OpportunityDetailModal } from "./opportunities/OpportunityDetailModal";
 import { useOpportunities } from "@/app/lib/hooks/useOpportunities";
@@ -14,6 +14,7 @@ export function VolunteeringOpportunities() {
 
   const [selectedOpp, setSelectedOpp] = useState<MatchedOpportunity | null>(null);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
+  const [sortValue, setSortValue] = useState<SortValue>("best-match");
 
   const handleFilterToggle = useCallback((id: string) => {
     setActiveFilters((prev) => {
@@ -25,10 +26,40 @@ export function VolunteeringOpportunities() {
   }, []);
 
   const filteredOpportunities = useMemo(() => {
-    if (activeFilters.size === 0) return opportunities;
-    const activeDefs = FILTERS.filter((f) => activeFilters.has(f.id));
-    return opportunities.filter((opp) => activeDefs.some((f) => f.match(opp)));
-  }, [opportunities, activeFilters]);
+    let result = opportunities;
+    if (activeFilters.size > 0) {
+      const activeDefs = FILTERS.filter((f) => activeFilters.has(f.id));
+      result = result.filter((opp) => activeDefs.some((f) => f.match(opp)));
+    }
+
+    const sorted = [...result];
+    switch (sortValue) {
+      case "distance":
+        sorted.sort((a, b) => a.opportunity.distanceMetres - b.opportunity.distanceMetres);
+        break;
+      case "urgency": {
+        const urgencyTerms = /\b(urgent|emergency|immediate|critical)\b/i;
+        const isUrgent = (o: MatchedOpportunity) =>
+          urgencyTerms.test(o.opportunity.title) ||
+          urgencyTerms.test(o.opportunity.description);
+        sorted.sort((a, b) => {
+          const aU = isUrgent(a) ? 0 : 1;
+          const bU = isUrgent(b) ? 0 : 1;
+          if (aU !== bU) return aU - bU;
+          return b.matchScore - a.matchScore;
+        });
+        break;
+      }
+      case "best-match":
+      default:
+        sorted.sort((a, b) => {
+          if (b.matchScore !== a.matchScore) return b.matchScore - a.matchScore;
+          return a.opportunity.distanceMetres - b.opportunity.distanceMetres;
+        });
+        break;
+    }
+    return sorted;
+  }, [opportunities, activeFilters, sortValue]);
 
   return (
     <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-6 px-5 py-8 sm:px-10 sm:py-12 over">
@@ -41,6 +72,8 @@ export function VolunteeringOpportunities() {
                 : `${opportunities.length} opportunities matched from your Solid Pod profile`
               : "Based on your live Solid Pod data"
           }
+          sortValue={sortValue}
+          onSortChange={(v) => setSortValue(v as SortValue)}
         />
         <OpportunitiesFilterTags
           selectedIds={activeFilters}

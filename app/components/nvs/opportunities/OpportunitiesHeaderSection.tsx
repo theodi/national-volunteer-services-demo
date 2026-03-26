@@ -4,11 +4,13 @@ import { useState } from "react";
 import { Dropdown } from "../../Dropdown";
 import { HeroText } from "../../HeroText";
 
-const SORT_OPTIONS = [
+export const SORT_OPTIONS = [
   { value: "best-match", label: "Sort by: Best Match" },
   { value: "distance", label: "Sort by: Distance" },
   { value: "urgency", label: "Sort by: Urgency" },
 ] as const;
+
+export type SortValue = (typeof SORT_OPTIONS)[number]["value"];
 
 export interface OpportunitiesHeaderSectionProps {
   title?: string;
