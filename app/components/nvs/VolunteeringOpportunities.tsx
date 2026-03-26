@@ -1,82 +1,97 @@
 "use client";
 
-import type { MatchReason } from "./opportunities/OpportunityCard";
 import { OpportunitiesFilterTags } from "./opportunities/OpportunitiesFilterTags";
 import { OpportunitiesHeaderSection } from "./opportunities/OpportunitiesHeaderSection";
 import { OpportunityCard } from "./opportunities/OpportunityCard";
-
-const OPPORTUNITIES_DATA: Array<{
-  organisationName: string;
-  matchScore: number;
-  isEmergency?: boolean;
-  roleTitle: string;
-  roleRegion: string;
-  matchReasons: MatchReason[];
-  tags: readonly string[];
-  distanceText: string;
-}> = [
-  {
-    organisationName: "British Red Cross",
-    matchScore: 94,
-    isEmergency: true,
-    roleTitle: "Emergency Response Coordinator",
-    roleRegion: "Oxford Region",
-    matchReasons: [
-      { text: "Your First Aid certification matches requirement", icon: "bolt" },
-      { text: "You opted into emergency response network", icon: "alarm" },
-      { text: "Within your preferred 10km Oxford radius", icon: "pin" },
-    ],
-    tags: ["Emergency", "First Aid Required", "4x4 Needed"],
-    distanceText: "2.4 miles from your Oxford pin",
-  },
-  {
-    organisationName: "Oxford Community Trust",
-    matchScore: 75,
-    roleTitle: "Community Support Driver — Weekly Rounds",
-    roleRegion: "",
-    matchReasons: [
-      { text: "Driving skill matches transport requirements", icon: "car" },
-      { text: "Flexible scheduling aligns with your availability", icon: "clock" },
-      { text: "Social care experience in your profile", icon: "handshake" },
-    ],
-    tags: ["Driving Required", "Flexible Hours", "Social Care"],
-    distanceText: "1.1 miles from your Oxford pin",
-  },
-  {
-    organisationName: "Habitat for Humanity UK",
-    matchScore: 25,
-    roleTitle: "Disaster Relief — Build Team Member",
-    roleRegion: "",
-    matchReasons: [
-      { text: "Physical work capability matches role needs", icon: "wrench" },
-      { text: "Weekend availability aligns perfectly", icon: "clock" },
-      { text: "PPE training and equipment certified", icon: "safety" },
-    ],
-    tags: ["Physical Work", "PPE Provided", "Weekends"],
-    distanceText: "4.7 miles from your Oxford pin",
-  },
-];
+import { useOpportunities } from "@/app/lib/hooks/useOpportunities";
+import { LoadingScreen } from "@/app/components/LoadingScreen";
 
 export function VolunteeringOpportunities() {
+  const { opportunities, isLoading, error, noLocations } = useOpportunities();
+
   return (
     <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-6 px-5 py-8 sm:px-10 sm:py-12">
-      <OpportunitiesHeaderSection />
+      <OpportunitiesHeaderSection
+        subtitle={
+          opportunities.length > 0
+            ? `${opportunities.length} opportunities matched from your Solid Pod profile`
+            : "Based on your live Solid Pod data"
+        }
+      />
       <OpportunitiesFilterTags />
-      <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {OPPORTUNITIES_DATA.map((opp) => (
-          <OpportunityCard
-            key={opp.organisationName}
-            organisationName={opp.organisationName}
-            matchScore={opp.matchScore}
-            isEmergency={opp.isEmergency}
-            roleTitle={opp.roleTitle}
-            roleRegion={opp.roleRegion}
-            matchReasons={opp.matchReasons}
-            tags={opp.tags}
-            distanceText={opp.distanceText}
-          />
-        ))}
-      </section>
+
+      {/* Loading state */}
+      {isLoading && (
+        <LoadingScreen message="Reading your Pod profile and finding opportunities…" />
+      )}
+
+      {/* Error state */}
+      {!isLoading && error && (
+        <div className="flex flex-col items-center gap-3 py-16 text-center">
+          <span className="text-3xl">⚠️</span>
+          <h3 className="text-lg font-bold text-blue-custom">
+            Something went wrong
+          </h3>
+          <p className="max-w-md text-sm text-gray-600">
+            We couldn&apos;t load opportunities right now. Please try refreshing
+            the page.
+          </p>
+          <p className="text-xs text-gray-400">{error.message}</p>
+        </div>
+      )}
+
+      {/* No locations in profile */}
+      {!isLoading && !error && noLocations && (
+        <div className="flex flex-col items-center gap-3 py-16 text-center">
+          <span className="text-3xl">📍</span>
+          <h3 className="text-lg font-bold text-blue-custom">
+            No locations in your profile
+          </h3>
+          <p className="max-w-md text-sm text-gray-600">
+            Add a preferred location in the Volunteer Profile Manager so we can
+            find opportunities near you.
+          </p>
+        </div>
+      )}
+
+      {/* Empty results (has locations but no API results) */}
+      {!isLoading && !error && !noLocations && opportunities.length === 0 && (
+        <div className="flex flex-col items-center gap-3 py-16 text-center">
+          <span className="text-3xl">🔍</span>
+          <h3 className="text-lg font-bold text-blue-custom">
+            No opportunities found
+          </h3>
+          <p className="max-w-md text-sm text-gray-600">
+            We couldn&apos;t find volunteering opportunities near your saved
+            locations. Try increasing your search radius in the Volunteer Profile
+            Manager.
+          </p>
+        </div>
+      )}
+
+      {/* Results grid */}
+      {!isLoading && !error && opportunities.length > 0 && (
+        <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {opportunities.map((matched) => (
+            <OpportunityCard
+              key={matched.opportunity.id}
+              organisationName={matched.opportunity.organisationName}
+              matchScore={matched.matchScore}
+              roleTitle={matched.opportunity.title}
+              roleRegion={matched.locationLabel}
+              matchReasons={matched.matchReasons}
+              tags={matched.tags}
+              distanceText={matched.distanceText}
+              roleHref={matched.opportunity.applyLink}
+              onApply={
+                matched.opportunity.applyLink
+                  ? () => window.open(matched.opportunity.applyLink!, "_blank")
+                  : undefined
+              }
+            />
+          ))}
+        </section>
+      )}
     </div>
   );
 }
