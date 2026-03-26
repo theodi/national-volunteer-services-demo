@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Button } from "../../Button";
 
 export interface MatchReason {
@@ -58,7 +57,6 @@ export function OpportunityCard({
   description,
   matchReasons,
   distanceText,
-  roleHref = "#",
   onApply,
   onViewDetails,
 }: OpportunityCardProps) {
@@ -88,13 +86,10 @@ export function OpportunityCard({
           </span>
         )}
 
-      <Link
-        href={roleHref}
-        className="text-xs text-earth-blue underline underline-offset-2 hover:text-blue-custom line-clamp-2"
-      >
+      <p className="text-xs text-blue-950 font-medium line-clamp-2">
         {roleTitle}
         {roleRegion ? ` — ${roleRegion}` : ""}
-      </Link>
+      </p>
 
       {truncatedDesc && (
         <p className="text-xs leading-relaxed text-gray-600 line-clamp-2">

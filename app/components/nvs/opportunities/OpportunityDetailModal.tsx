@@ -118,18 +118,7 @@ export function OpportunityDetailModal({
           <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1">
             Role
           </p>
-          {roleHref ? (
-            <a
-              href={roleHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm font-medium text-earth-blue underline underline-offset-2 hover:text-blue-custom"
-            >
-              {roleTitle}
-            </a>
-          ) : (
-            <p className="text-sm font-medium text-blue-950">{roleTitle}</p>
-          )}
+          <p className="text-sm font-medium text-blue-950">{roleTitle}</p>
           {roleRegion && (
             <p className="mt-0.5 text-xs text-gray-500">📍 {roleRegion}</p>
           )}
