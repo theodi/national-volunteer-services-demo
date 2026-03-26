@@ -119,11 +119,14 @@ async function fetchAndScoreAll(
     }
   }
 
-  // Final sort: score descending, then distance ascending
-  return [...bestByKey.values()].sort((a, b) => {
-    if (b.matchScore !== a.matchScore) return b.matchScore - a.matchScore;
-    return a.opportunity.distanceMetres - b.opportunity.distanceMetres;
-  });
+  // Final sort: score descending, then distance ascending.
+  // Filter out 0% matches — the goal is to show matched opportunities only.
+  return [...bestByKey.values()]
+    .filter((m) => m.matchScore > 0)
+    .sort((a, b) => {
+      if (b.matchScore !== a.matchScore) return b.matchScore - a.matchScore;
+      return a.opportunity.distanceMetres - b.opportunity.distanceMetres;
+    });
 }
 
 // ---------------------------------------------------------------------------
