@@ -97,6 +97,7 @@ async function fetchAndScoreAll(
         opportunities,
         profileKeywords,
         loc.label || `${loc.lat.toFixed(2)}, ${loc.lng.toFixed(2)}`,
+        distanceMetres,
       );
     }),
   );

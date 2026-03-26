@@ -1,10 +1,12 @@
 /**
  * Opportunity matcher: scores API opportunities against the user's
- * Pod volunteer profile (skills, causes, equipment).
+ * Pod volunteer profile (skills, causes, equipment) and proximity.
  *
- * For each opportunity we scan `title` + `description` for keyword
- * matches derived from the user's profile IRIs (via vocabularyLabels).
- * The match score is a percentage of how many profile categories matched.
+ * Scoring combines three signals:
+ * 1. Profile proportion (60%) — what fraction of the user's profile IRIs
+ *    matched keywords in the opportunity text
+ * 2. Keyword depth (25%) — rewards breadth of unique keyword hits
+ * 3. Proximity bonus (15%) — closer to the user's location = higher score
  *
  * Output is shaped to feed directly into OpportunityCard props.
  */
@@ -126,18 +128,19 @@ function matchIrisAgainstText(
 /**
  * Scores a single opportunity against the user's profile keywords.
  *
- * Scoring:
- * - Each category (skills, causes, equipment) that has ≥1 keyword match
- *   contributes equally to the score.
- * - 3 categories = 100%, 2 = 66%, 1 = 33%, 0 = 0%.
- * - A small bonus (up to 10%) is added for multiple matches within categories.
+ * Combined scoring (0–100):
+ *   Profile proportion  (60%): fraction of user's IRIs that matched
+ *   Keyword depth       (25%): unique keyword hits across all categories
+ *   Proximity bonus     (15%): linear scale — nearer = higher
  *
- * @param locationLabel  The user's saved location label (e.g. "Oxford")
+ * @param locationLabel      The user's saved location label (e.g. "Oxford")
+ * @param searchRadiusMetres The user's search radius for this location
  */
 export function scoreOpportunity(
   opp: Opportunity,
   profile: ProfileKeywords,
   locationLabel: string,
+  searchRadiusMetres: number,
 ): MatchedOpportunity {
   const haystack = `${opp.title} ${opp.description}`.toLowerCase();
 
@@ -148,21 +151,68 @@ export function scoreOpportunity(
 
   const allMatches = [...skillMatches, ...causeMatches, ...equipmentMatches];
 
-  // Count how many categories matched (0–3)
-  const categoriesMatched = [
-    skillMatches.length > 0,
-    causeMatches.length > 0,
-    equipmentMatches.length > 0,
-  ].filter(Boolean).length;
+  // -----------------------------------------------------------------------
+  // Component 1: Profile proportion (60 points max)
+  // What fraction of the user's IRIs in each category matched?
+  // Categories with 0 user IRIs redistribute their weight to the others.
+  // -----------------------------------------------------------------------
+  const RAW_WEIGHTS = { skills: 40, causes: 35, equipment: 25 };
 
-  // Base score: each category worth ~30 points (max 90 from categories)
-  const baseScore = categoriesMatched * 30;
+  const categoryScores: { ratio: number; weight: number }[] = [];
 
-  // Bonus: up to 10 points for depth of matching (many hits across categories)
-  const totalHits = allMatches.length;
-  const depthBonus = Math.min(10, totalHits * 2);
+  if (profile.skillIris.length > 0) {
+    const uniqueMatched = new Set(skillMatches.map((m) => m.iri)).size;
+    categoryScores.push({
+      ratio: uniqueMatched / profile.skillIris.length,
+      weight: RAW_WEIGHTS.skills,
+    });
+  }
+  if (profile.causeIris.length > 0) {
+    const uniqueMatched = new Set(causeMatches.map((m) => m.iri)).size;
+    categoryScores.push({
+      ratio: uniqueMatched / profile.causeIris.length,
+      weight: RAW_WEIGHTS.causes,
+    });
+  }
+  if (profile.equipmentIris.length > 0) {
+    const uniqueMatched = new Set(equipmentMatches.map((m) => m.iri)).size;
+    categoryScores.push({
+      ratio: uniqueMatched / profile.equipmentIris.length,
+      weight: RAW_WEIGHTS.equipment,
+    });
+  }
 
-  const matchScore = Math.min(100, baseScore + depthBonus);
+  let profileScore = 0;
+  if (categoryScores.length > 0) {
+    // Redistribute total 60 points proportionally across active categories
+    const totalWeight = categoryScores.reduce((s, c) => s + c.weight, 0);
+    for (const cs of categoryScores) {
+      const normalisedWeight = (cs.weight / totalWeight) * 60;
+      profileScore += cs.ratio * normalisedWeight;
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // Component 2: Keyword depth (25 points max)
+  // Unique keyword hits (not IRIs — the actual text keywords that matched).
+  // Caps at 8 unique keywords for full score.
+  // -----------------------------------------------------------------------
+  const uniqueKeywords = new Set(allMatches.map((m) => m.matchedKeyword));
+  const depthScore = Math.min(25, (uniqueKeywords.size / 8) * 25);
+
+  // -----------------------------------------------------------------------
+  // Component 3: Proximity bonus (15 points max)
+  // Linear: 15 at distance=0, 0 at distance=searchRadius.
+  // -----------------------------------------------------------------------
+  const proximityRatio = searchRadiusMetres > 0
+    ? Math.max(0, 1 - opp.distanceMetres / searchRadiusMetres)
+    : 0;
+  const proximityScore = proximityRatio * 15;
+
+  // -----------------------------------------------------------------------
+  // Final score
+  // -----------------------------------------------------------------------
+  const matchScore = Math.min(100, Math.round(profileScore + depthScore + proximityScore));
 
   // Build match reasons (up to 3, one per category, plus location)
   const matchReasons: MatchReason[] = [];
@@ -228,9 +278,10 @@ export function scoreAndSortOpportunities(
   opportunities: Opportunity[],
   profile: ProfileKeywords,
   locationLabel: string,
+  searchRadiusMetres: number,
 ): MatchedOpportunity[] {
   return opportunities
-    .map((opp) => scoreOpportunity(opp, profile, locationLabel))
+    .map((opp) => scoreOpportunity(opp, profile, locationLabel, searchRadiusMetres))
     .sort((a, b) => {
       // Primary: higher score first
       if (b.matchScore !== a.matchScore) return b.matchScore - a.matchScore;
