@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
-import { OpportunitiesFilterTags, FILTERS } from "./opportunities/OpportunitiesFilterTags";
+import { useState, useMemo } from "react";
 import { OpportunitiesHeaderSection, type SortValue } from "./opportunities/OpportunitiesHeaderSection";
 import { OpportunityCard } from "./opportunities/OpportunityCard";
 import { OpportunityDetailModal } from "./opportunities/OpportunityDetailModal";
@@ -13,26 +12,10 @@ export function VolunteeringOpportunities() {
   const { opportunities, isLoading, error, noLocations } = useOpportunities();
 
   const [selectedOpp, setSelectedOpp] = useState<MatchedOpportunity | null>(null);
-  const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const [sortValue, setSortValue] = useState<SortValue>("best-match");
 
-  const handleFilterToggle = useCallback((id: string) => {
-    setActiveFilters((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
-
-  const filteredOpportunities = useMemo(() => {
-    let result = opportunities;
-    if (activeFilters.size > 0) {
-      const activeDefs = FILTERS.filter((f) => activeFilters.has(f.id));
-      result = result.filter((opp) => activeDefs.some((f) => f.match(opp)));
-    }
-
-    const sorted = [...result];
+  const sortedOpportunities = useMemo(() => {
+    const sorted = [...opportunities];
     switch (sortValue) {
       case "distance":
         sorted.sort((a, b) => a.opportunity.distanceMetres - b.opportunity.distanceMetres);
@@ -59,7 +42,7 @@ export function VolunteeringOpportunities() {
         break;
     }
     return sorted;
-  }, [opportunities, activeFilters, sortValue]);
+  }, [opportunities, sortValue]);
 
   return (
     <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-6 px-5 py-8 sm:px-10 sm:py-12 over">
@@ -67,17 +50,11 @@ export function VolunteeringOpportunities() {
         <OpportunitiesHeaderSection
           subtitle={
             opportunities.length > 0
-              ? activeFilters.size > 0
-                ? `Showing ${filteredOpportunities.length} of ${opportunities.length} opportunities`
-                : `${opportunities.length} opportunities matched from your Solid Pod profile`
+              ? `${opportunities.length} opportunities matched from your Solid Pod profile`
               : "Based on your live Solid Pod data"
           }
           sortValue={sortValue}
           onSortChange={(v) => setSortValue(v as SortValue)}
-        />
-        <OpportunitiesFilterTags
-          selectedIds={activeFilters}
-          onToggle={handleFilterToggle}
         />
       </div>
 
@@ -130,23 +107,10 @@ export function VolunteeringOpportunities() {
         </div>
       )}
 
-      {/* Filters active but nothing matches */}
-      {!isLoading && !error && opportunities.length > 0 && filteredOpportunities.length === 0 && (
-        <div className="flex flex-col items-center gap-3 py-16 text-center">
-          <span className="text-3xl">🔍</span>
-          <h3 className="text-lg font-bold text-blue-custom">
-            No opportunities match your filters
-          </h3>
-          <p className="max-w-md text-sm text-gray-600">
-            Try removing some filters to see more results.
-          </p>
-        </div>
-      )}
-
       {/* Results grid */}
-      {!isLoading && !error && filteredOpportunities.length > 0 && (
+      {!isLoading && !error && sortedOpportunities.length > 0 && (
         <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredOpportunities.map((matched) => (
+          {sortedOpportunities.map((matched) => (
             <OpportunityCard
               key={matched.opportunity.id}
               organisationName={matched.opportunity.organisationName}
