@@ -20,19 +20,6 @@ export function VolunteeringOpportunities() {
       case "distance":
         sorted.sort((a, b) => a.opportunity.distanceMetres - b.opportunity.distanceMetres);
         break;
-      case "urgency": {
-        const urgencyTerms = /\b(urgent|emergency|immediate|critical)\b/i;
-        const isUrgent = (o: MatchedOpportunity) =>
-          urgencyTerms.test(o.opportunity.title) ||
-          urgencyTerms.test(o.opportunity.description);
-        sorted.sort((a, b) => {
-          const aU = isUrgent(a) ? 0 : 1;
-          const bU = isUrgent(b) ? 0 : 1;
-          if (aU !== bU) return aU - bU;
-          return b.matchScore - a.matchScore;
-        });
-        break;
-      }
       case "best-match":
       default:
         sorted.sort((a, b) => {

@@ -7,7 +7,6 @@ import { HeroText } from "../../HeroText";
 export const SORT_OPTIONS = [
   { value: "best-match", label: "Sort by: Best Match" },
   { value: "distance", label: "Sort by: Distance" },
-  { value: "urgency", label: "Sort by: Urgency" },
 ] as const;
 
 export type SortValue = (typeof SORT_OPTIONS)[number]["value"];
