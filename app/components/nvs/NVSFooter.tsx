@@ -19,7 +19,7 @@ export function NVSFooter() {
       <div className="mx-auto flex max-w-7xl flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3 text-center text-sm sm:text-left">
           <p className="font-bold text-blue-custom">
-            National Volunteer Services
+            Volunteer Opportunity Register
           </p>
           <span className="text-gray-500 text-xs font-normal">•</span>
           <p className="text-gray-500 text-xs font-normal">

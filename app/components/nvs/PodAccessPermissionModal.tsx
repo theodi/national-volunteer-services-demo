@@ -59,7 +59,7 @@ export function PodAccessPermissionModal({
 
           <HeroText
             title="We'd like to access your Pod data"
-            description="National Volunteer Services is requesting permission to read the
+            description="Volunteer Opportunity Register is requesting permission to read the
               following data from your Solid Pod to find you relevant volunteering
               opportunities."
             titleClassName="text-xl !font-bold !text-blue-custom sm:!text-2xl"

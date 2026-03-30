@@ -4,9 +4,9 @@ import { SolidProviders } from "./providers";
 import { NVSShell } from "@/app/components/nvs/NVSShell";
 
 export const metadata: Metadata = {
-  title: "National Volunteer Services",
+  title: "Volunteer Opportunity Register",
   description:
-    "Find volunteering opportunities matched to your skills, availability, and location — powered by Solid.",
+    "Find volunteering opportunities matched to your skills, availability, and location — powered by the National Data Library and Solid.",
 };
 
 export default function RootLayout({

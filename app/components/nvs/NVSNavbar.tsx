@@ -10,8 +10,8 @@ interface NVSNavbarProps {
 }
 
 export function NVSNavbar({
-  title = "National Volunteer Services",
-  subtitle = "Powered by Solid Pod Technology",
+  title = "Volunteer Opportunity Register",
+  subtitle = "powered by the National Data Library and Solid.",
 }: NVSNavbarProps) {
   const { profile } = useUserProfile();
 

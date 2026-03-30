@@ -46,7 +46,7 @@ export default function LoginPage() {
         logo="/Gov-UK-logo.png"
         logoAlt="GOV.UK Logo"
         title="Sign in"
-        subtitle="to continue to National Volunteer Services"
+        subtitle="to continue to Volunteer Opportunity Register"
         className="font-sora"
       />
     </>
