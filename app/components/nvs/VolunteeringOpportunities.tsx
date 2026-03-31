@@ -73,7 +73,7 @@ export function VolunteeringOpportunities() {
             No locations in your profile
           </h3>
           <p className="max-w-md text-sm text-gray-600">
-            Add a preferred location in the Volunteer Profile Manager so we can
+            Add a preferred location in the Solid Profile Manager so we can
             find opportunities near you.
           </p>
         </div>

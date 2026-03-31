@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { NVSNavbar } from "@/app/components/nvs/NVSNavbar";
 import { NVSFooter } from "@/app/components/nvs/NVSFooter";
+import { ChatAssistant } from "@/app/components/ChatAssistant";
 
 /**
  * Wraps the NVS page shell (navbar + footer). Skipped on the login page
@@ -13,7 +14,12 @@ export function NVSShell({ children }: { children: React.ReactNode }) {
   const isLoginPage = pathname === "/login";
 
   if (isLoginPage) {
-    return <>{children}</>;
+    return (
+      <>
+        {children}
+        <ChatAssistant />
+      </>
+    );
   }
 
   return (
@@ -21,6 +27,7 @@ export function NVSShell({ children }: { children: React.ReactNode }) {
       <NVSNavbar />
       <main className="min-h-0 flex-1">{children}</main>
       <NVSFooter />
+      <ChatAssistant />
     </>
   );
 }
