@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useSolidAuth } from "@ldo/solid-react";
 import { NVSNavbar } from "@/app/components/nvs/NVSNavbar";
 import { NVSFooter } from "@/app/components/nvs/NVSFooter";
 import { ChatAssistant } from "@/app/components/ChatAssistant";
@@ -11,15 +12,12 @@ import { ChatAssistant } from "@/app/components/ChatAssistant";
  */
 export function NVSShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { session } = useSolidAuth();
   const isLoginPage = pathname === "/login";
+  const isLoggedIn = session.isLoggedIn;
 
   if (isLoginPage) {
-    return (
-      <>
-        {children}
-        <ChatAssistant />
-      </>
-    );
+    return <>{children}</>;
   }
 
   return (
@@ -27,7 +25,7 @@ export function NVSShell({ children }: { children: React.ReactNode }) {
       <NVSNavbar />
       <main className="min-h-0 flex-1">{children}</main>
       <NVSFooter />
-      <ChatAssistant />
+      {isLoggedIn && <ChatAssistant />}
     </>
   );
 }
