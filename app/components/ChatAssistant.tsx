@@ -1,50 +1,40 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import {
   BellAlertIcon,
   ChatBubbleLeftRightIcon,
   PaperAirplaneIcon,
   XMarkIcon,
+  MapPinIcon,
 } from "@heroicons/react/24/solid";
+import { useChatProfile } from "@/app/lib/chat/useChatProfile";
+import type {
+  ChatMessage,
+  ChatRequestBody,
+  ChatResponseBody,
+  ConversationMessage,
+} from "@/app/lib/chat/types";
 
-export interface ChatAssistantProps {
-  onClick?: () => void;
-}
-
-type Sender = "bot" | "user";
-
-interface ChatMessage {
-  id: string;
-  sender: Sender;
-  text: string;
-}
-
-const BOT_RESPONSES: Record<string, string> = {
-  "How do I find opportunities near me?":
-    "Go to Opportunities, then choose 'Sort by: Distance'. Roles closest to your saved Pod location appear first.",
-  "How is my match score calculated?":
-    "Your score blends profile relevance and proximity. Skills, causes, and requirements from your Solid profile are compared to each role.",
-  "Can I apply directly from here?":
-    "Yes. Open any role and select Apply. The role link opens in a new tab so you can come back easily.",
-  "What data are you using from my Pod?":
-    "This demo reads volunteer profile details like skills, causes, and preferred locations to personalise matches.",
+const WELCOME_MESSAGE: ChatMessage = {
+  id: "welcome",
+  role: "assistant",
+  content:
+    "Hi, I'm your volunteering assistant. Ask me anything about finding opportunities or about your profile.",
 };
 
-export function ChatAssistant({ onClick }: ChatAssistantProps) {
+export function ChatAssistant() {
   const [showHint, setShowHint] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [isBotTyping, setIsBotTyping] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: "welcome",
-      sender: "bot",
-      text: "Hi, I am your assistant. Ask me anything about finding opportunities.",
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
+  const [profileSent, setProfileSent] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const chatProfile = useChatProfile();
 
   const canSend = useMemo(
     () => inputValue.trim().length > 0 && !isBotTyping,
@@ -61,35 +51,89 @@ export function ChatAssistant({ onClick }: ChatAssistantProps) {
   }, [isOpen]);
 
   useEffect(() => {
+    if (isOpen) {
+      window.setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, isBotTyping, isOpen]);
 
-  const addBotReply = (prompt: string) => {
-    const reply =
-      BOT_RESPONSES[prompt] ??
-      "Great question. In this prototype I can answer common onboarding queries. Try one of the quick questions.";
+  const buildConversation = useCallback(
+    (allMessages: ChatMessage[]): ConversationMessage[] => {
+      return allMessages
+        .filter((m) => m.id !== "welcome")
+        .map((m) => ({ role: m.role, content: m.content }));
+    },
+    [],
+  );
 
-    setIsBotTyping(true);
-    window.setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        { id: `bot-${Date.now()}`, sender: "bot", text: reply },
-      ]);
-      setIsBotTyping(false);
-    }, 650);
-  };
+  const callChatApi = useCallback(
+    async (allMessages: ChatMessage[]) => {
+      const conversation = buildConversation(allMessages);
+      const body: ChatRequestBody = { conversation };
 
-  const sendUserMessage = (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed || isBotTyping) return;
+      if (!profileSent && chatProfile) {
+        body.profile = chatProfile;
+        setProfileSent(true);
+      }
 
-    setMessages((prev) => [
-      ...prev,
-      { id: `user-${Date.now()}`, sender: "user", text: trimmed },
-    ]);
-    setInputValue("");
-    addBotReply(trimmed);
-  };
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Chat API error: ${res.status}`);
+      }
+
+      return (await res.json()) as ChatResponseBody;
+    },
+    [buildConversation, chatProfile, profileSent],
+  );
+
+  const sendUserMessage = useCallback(
+    async (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed || isBotTyping) return;
+
+      const userMsg: ChatMessage = {
+        id: `user-${Date.now()}`,
+        role: "user",
+        content: trimmed,
+      };
+      const updatedMessages = [...messages, userMsg];
+      setMessages(updatedMessages);
+      setInputValue("");
+      setIsBotTyping(true);
+
+      try {
+        const data = await callChatApi(updatedMessages);
+        const botMsg: ChatMessage = {
+          id: `assistant-${Date.now()}`,
+          role: "assistant",
+          content: data.reply,
+          opportunities: data.opportunities,
+        };
+        setMessages((prev) => [...prev, botMsg]);
+      } catch {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `error-${Date.now()}`,
+            role: "assistant",
+            content:
+              "Sorry, something went wrong. Please try again.",
+          },
+        ]);
+      } finally {
+        setIsBotTyping(false);
+      }
+    },
+    [isBotTyping, messages, callChatApi],
+  );
 
   return (
     <div className="fixed bottom-6 right-6 z-60">
@@ -115,21 +159,71 @@ export function ChatAssistant({ onClick }: ChatAssistantProps) {
               </button>
             </header>
 
-            <div className="max-h-[340px] space-y-3 overflow-y-auto bg-linear-to-b from-blue-50/40 to-white px-4 py-4">
+            <div
+              aria-live="polite"
+              aria-relevant="additions"
+              className="max-h-[340px] space-y-3 overflow-y-auto bg-linear-to-b from-blue-50/40 to-white px-4 py-4"
+            >
               {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
-                >
-                  <p
-                    className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
-                      msg.sender === "user"
-                        ? "rounded-br-md bg-blue-custom text-white"
-                        : "rounded-bl-md border border-blue-100 bg-white text-slate-700"
-                    }`}
+                <div key={msg.id} className="space-y-2">
+                  <div
+                    className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                   >
-                    {msg.text}
-                  </p>
+                    <p
+                      className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+                        msg.role === "user"
+                          ? "rounded-br-md bg-blue-custom text-white"
+                          : "rounded-bl-md border border-blue-100 bg-white text-slate-700"
+                      }`}
+                    >
+                      {msg.content}
+                    </p>
+                  </div>
+
+                  {msg.opportunities && msg.opportunities.length > 0 && (
+                    <div className="space-y-2 pl-1">
+                      {msg.opportunities.slice(0, 3).map((opp) => (
+                        <article
+                          key={opp.id}
+                          className="rounded-lg border border-blue-100 bg-white p-3 shadow-sm"
+                        >
+                          <h4 className="text-xs font-bold text-blue-custom leading-tight">
+                            {opp.title}
+                          </h4>
+                          <p className="mt-0.5 text-[11px] text-slate-500">
+                            {opp.organisationName}
+                          </p>
+                          <p className="mt-1 text-[11px] leading-relaxed text-slate-600 line-clamp-2">
+                            {opp.description}
+                          </p>
+                          <div className="mt-2 flex items-center justify-between">
+                            <span className="flex items-center gap-1 text-[10px] text-slate-400">
+                              <MapPinIcon className="h-3 w-3" aria-hidden />
+                              {opp.distanceText}
+                            </span>
+                            {opp.applyLink && (
+                              <a
+                                href={opp.applyLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="rounded bg-blue-custom px-2 py-1 text-[10px] font-semibold text-white hover:brightness-95"
+                              >
+                                Apply
+                              </a>
+                            )}
+                          </div>
+                        </article>
+                      ))}
+                      {msg.opportunities.length > 3 && (
+                        <Link
+                          href="/opportunities"
+                          className="block text-center text-xs font-medium text-blue-custom underline underline-offset-2 hover:text-earth-blue"
+                        >
+                          View all {msg.opportunities.length} opportunities
+                        </Link>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
 
@@ -143,7 +237,7 @@ export function ChatAssistant({ onClick }: ChatAssistantProps) {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="space-y-3 border-t border-slate-100 px-4 py-3">
+            <div className="border-t border-slate-100 px-4 py-3">
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -155,6 +249,7 @@ export function ChatAssistant({ onClick }: ChatAssistantProps) {
                   Type your question
                 </label>
                 <input
+                  ref={inputRef}
                   id="chat-assistant-input"
                   type="text"
                   value={inputValue}
@@ -205,10 +300,7 @@ export function ChatAssistant({ onClick }: ChatAssistantProps) {
           onMouseLeave={() => setShowHint(false)}
           onFocus={() => setShowHint(true)}
           onBlur={() => setShowHint(false)}
-          onClick={() => {
-            setIsOpen((prev) => !prev);
-            onClick?.();
-          }}
+          onClick={() => setIsOpen((prev) => !prev)}
           className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-custom text-white shadow-lg transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 cursor-pointer"
         >
           <ChatBubbleLeftRightIcon className="h-7 w-7" aria-hidden />
