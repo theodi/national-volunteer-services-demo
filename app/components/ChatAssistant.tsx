@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import {
   BellAlertIcon,
   ChatBubbleLeftRightIcon,
@@ -111,13 +110,28 @@ export function ChatAssistant() {
 
       try {
         const data = await callChatApi(updatedMessages);
-        const botMsg: ChatMessage = {
-          id: `assistant-${Date.now()}`,
-          role: "assistant",
-          content: data.reply,
-          opportunities: data.opportunities,
-        };
-        setMessages((prev) => [...prev, botMsg]);
+        if (data.opportunities?.length) {
+          const introMsg: ChatMessage = {
+            id: `assistant-intro-${Date.now()}`,
+            role: "assistant",
+            content: "Here are a few opportunities that match your profile and preferences.",
+            opportunities: data.opportunities,
+          };
+          const followUpMsg: ChatMessage = {
+            id: `assistant-followup-${Date.now() + 1}`,
+            role: "assistant",
+            content: "Do any of these opportunities interest you, or would you like refined options?",
+          };
+          setMessages((prev) => [...prev, introMsg, followUpMsg]);
+        } else {
+          const botMsg: ChatMessage = {
+            id: `assistant-${Date.now()}`,
+            role: "assistant",
+            content: data.reply,
+            opportunities: data.opportunities,
+          };
+          setMessages((prev) => [...prev, botMsg]);
+        }
       } catch {
         setMessages((prev) => [
           ...prev,
@@ -166,19 +180,21 @@ export function ChatAssistant() {
             >
               {messages.map((msg) => (
                 <div key={msg.id} className="space-y-2">
-                  <div
-                    className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-                  >
-                    <p
-                      className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
-                        msg.role === "user"
-                          ? "rounded-br-md bg-blue-custom text-white"
-                          : "rounded-bl-md border border-blue-100 bg-white text-slate-700"
-                      }`}
+                  {msg.content.trim().length > 0 && (
+                    <div
+                      className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                     >
-                      {msg.content}
-                    </p>
-                  </div>
+                      <p
+                        className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+                          msg.role === "user"
+                            ? "rounded-br-md bg-blue-custom text-white"
+                            : "rounded-bl-md border border-blue-100 bg-white text-slate-700"
+                        }`}
+                      >
+                        {msg.content}
+                      </p>
+                    </div>
+                  )}
 
                   {msg.opportunities && msg.opportunities.length > 0 && (
                     <div className="space-y-2 pl-1">
@@ -214,14 +230,6 @@ export function ChatAssistant() {
                           </div>
                         </article>
                       ))}
-                      {msg.opportunities.length > 3 && (
-                        <Link
-                          href="/opportunities"
-                          className="block text-center text-xs font-medium text-blue-custom underline underline-offset-2 hover:text-earth-blue"
-                        >
-                          View all {msg.opportunities.length} opportunities
-                        </Link>
-                      )}
                     </div>
                   )}
                 </div>
