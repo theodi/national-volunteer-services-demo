@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { buildSystemPrompt } from "@/app/lib/chat/systemPrompt";
-import { fetchOpportunities } from "@/app/lib/helpers/opportunitiesApi";
 import type {
   ChatRequestBody,
   ChatResponseBody,
@@ -14,59 +13,11 @@ import type {
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY ?? "" });
 
-// ---------------------------------------------------------------------------
-// Volunteering API cache (in-memory, 5-min TTL)
-// ---------------------------------------------------------------------------
-
-interface CachedEntry {
-  data: OpportunityResult[];
-  expiresAt: number;
-}
-
-const opportunityCache = new Map<string, CachedEntry>();
-const CACHE_TTL_MS = 5 * 60 * 1000;
-
-function cacheKey(lat: number, lon: number, distance: number): string {
-  return `${lat.toFixed(4)},${lon.toFixed(4)},${distance}`;
-}
-
-const METRES_PER_MILE = 1609.344;
-
-function metresToMilesText(metres: number): string {
-  const miles = metres / METRES_PER_MILE;
-  if (miles < 0.1) return "Less than 0.1 miles away";
-  return `${miles.toFixed(1)} miles away`;
-}
-
-async function fetchCachedOpportunities(
-  lat: number,
-  lon: number,
-  distanceMetres: number,
-): Promise<OpportunityResult[]> {
-  const key = cacheKey(lat, lon, distanceMetres);
-  const cached = opportunityCache.get(key);
-  if (cached && cached.expiresAt > Date.now()) return cached.data;
-
-  const raw = await fetchOpportunities({ lat, lon, distanceMetres });
-  const results: OpportunityResult[] = raw.slice(0, 15).map((opp) => ({
-    id: opp.id,
-    title: opp.title,
-    organisationName: opp.organisationName,
-    description:
-      opp.description.length > 200
-        ? `${opp.description.slice(0, 200).trimEnd()}…`
-        : opp.description,
-    distanceText: metresToMilesText(opp.distanceMetres),
-    applyLink: opp.applyLink,
-  }));
-
-  opportunityCache.set(key, {
-    data: results,
-    expiresAt: Date.now() + CACHE_TTL_MS,
-  });
-
-  return results;
-}
+/**
+ * How many opportunity summaries to include in the GPT tool response.
+ * Keeps token usage sane — the client already has the full list.
+ */
+const GPT_CONTEXT_LIMIT = 20;
 
 // ---------------------------------------------------------------------------
 // Tool definition for OpenAI function calling
@@ -76,21 +27,10 @@ const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
     type: "function",
     function: {
-      name: "search_opportunities",
+      name: "get_opportunities",
       description:
-        "Search for volunteering opportunities near a location. Returns a list of opportunities sorted by distance.",
-      parameters: {
-        type: "object",
-        properties: {
-          lat: { type: "number", description: "Latitude of search centre" },
-          lon: { type: "number", description: "Longitude of search centre" },
-          distance_metres: {
-            type: "number",
-            description: "Search radius in metres (e.g. 10000 for 10km)",
-          },
-        },
-        required: ["lat", "lon", "distance_metres"],
-      },
+        "Retrieve the volunteering opportunities that have already been loaded and matched for the user. Call this whenever the user asks to see, search, or browse opportunities.",
+      parameters: { type: "object", properties: {} },
     },
   },
 ];
@@ -129,6 +69,9 @@ export async function POST(request: Request) {
     );
   }
 
+  // Client-provided opportunities (already fetched + matched on the client)
+  const clientOpportunities: OpportunityResult[] = body.opportunities ?? [];
+
   const systemMessage: OpenAI.Chat.Completions.ChatCompletionMessageParam = {
     role: "system",
     content: buildSystemPrompt(body.profile),
@@ -146,7 +89,13 @@ export async function POST(request: Request) {
   ];
 
   try {
-    let collectedOpportunities: OpportunityResult[] | undefined;
+    let shouldReturnOpportunities = false;
+
+    // Detect if the user's latest message looks like an opportunity request.
+    const lastUserContent = body.conversation
+      .filter((m) => m.role === "user")
+      .at(-1)?.content?.toLowerCase() ?? "";
+    const looksLikeOppRequest = /\b(opportunit|recommend|find|show|search|more|another|different|suggest|looking for|need|want)\b/i.test(lastUserContent);
 
     let completion = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -159,40 +108,21 @@ export async function POST(request: Request) {
 
     let choice = completion.choices[0];
 
-    // Handle tool calls (may loop if model chains calls)
+    // Handle tool calls — GPT calls get_opportunities, we return client data
     let iterations = 0;
     while (choice?.finish_reason === "tool_calls" && choice.message.tool_calls && iterations < 3) {
       iterations++;
-      const toolCalls = choice.message.tool_calls;
-
       messages.push(choice.message);
 
-      for (const toolCall of toolCalls) {
+      for (const toolCall of choice.message.tool_calls) {
         if (!("function" in toolCall)) continue;
-        if (toolCall.function.name === "search_opportunities") {
-          let args: { lat: number; lon: number; distance_metres: number };
-          try {
-            args = JSON.parse(toolCall.function.arguments);
-          } catch {
-            messages.push({
-              role: "tool",
-              tool_call_id: toolCall.id,
-              content: JSON.stringify({ error: "Invalid arguments" }),
-            });
-            continue;
-          }
-
-          const opportunities = await fetchCachedOpportunities(
-            args.lat,
-            args.lon,
-            args.distance_metres,
-          );
-          collectedOpportunities = opportunities;
-
+        if (toolCall.function.name === "get_opportunities") {
+          shouldReturnOpportunities = true;
+          // Feed GPT a subset of the client opportunities so it can write a reply
           messages.push({
             role: "tool",
             tool_call_id: toolCall.id,
-            content: JSON.stringify(opportunities),
+            content: JSON.stringify(clientOpportunities.slice(0, GPT_CONTEXT_LIMIT)),
           });
         }
       }
@@ -209,16 +139,56 @@ export async function POST(request: Request) {
       choice = completion.choices[0];
     }
 
+    // Safety net: if the user asked for opportunities but GPT didn't call the
+    // tool, force a retry with tool_choice: "required".
+    if (looksLikeOppRequest && !shouldReturnOpportunities && clientOpportunities.length > 0) {
+      completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages,
+        tools: TOOLS,
+        tool_choice: "required",
+        temperature: 0.7,
+        max_tokens: 1024,
+      });
+      choice = completion.choices[0];
+
+      if (choice?.message?.tool_calls) {
+        messages.push(choice.message);
+        for (const toolCall of choice.message.tool_calls) {
+          if (!("function" in toolCall)) continue;
+          if (toolCall.function.name === "get_opportunities") {
+            shouldReturnOpportunities = true;
+            messages.push({
+              role: "tool",
+              tool_call_id: toolCall.id,
+              content: JSON.stringify(clientOpportunities.slice(0, GPT_CONTEXT_LIMIT)),
+            });
+          }
+        }
+
+        completion = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages,
+          tools: TOOLS,
+          tool_choice: "auto",
+          temperature: 0.7,
+          max_tokens: 1024,
+        });
+        choice = completion.choices[0];
+      }
+    }
+
     const reply = choice?.message?.content ?? "I couldn't generate a response. Please try again.";
 
     const responseBody: ChatResponseBody = {
       reply,
-      opportunities: collectedOpportunities,
+      // Return the full client opportunity set when GPT triggered the tool
+      opportunities: shouldReturnOpportunities ? clientOpportunities : undefined,
     };
 
     return NextResponse.json(responseBody);
   } catch (err) {
-    console.error("Chat API error:", err instanceof Error ? err.message : err);
+    console.error("Chat API error:", err instanceof Error ? err.stack ?? err.message : err);
     return NextResponse.json(
       {
         reply: "Sorry, I encountered an error. Please try again shortly.",

@@ -38,6 +38,8 @@ export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  /** Text shown after opportunity cards (follow-up question). */
+  followUp?: string;
   opportunities?: OpportunityResult[];
 }
 
@@ -61,6 +63,8 @@ export interface OpportunityResult {
 export interface ChatRequestBody {
   conversation: ConversationMessage[];
   profile?: ChatProfile;
+  /** Client-side opportunities already loaded from the API + matched. */
+  opportunities?: OpportunityResult[];
 }
 
 export interface ChatResponseBody {

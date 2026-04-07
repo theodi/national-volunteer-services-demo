@@ -14,7 +14,13 @@ import type {
   ChatRequestBody,
   ChatResponseBody,
   ConversationMessage,
+  OpportunityResult,
 } from "@/app/lib/chat/types";
+import type { MatchedOpportunity } from "@/app/lib/helpers/opportunityMatcher";
+
+interface ChatAssistantProps {
+  opportunities: MatchedOpportunity[];
+}
 
 const WELCOME_MESSAGE: ChatMessage = {
   id: "welcome",
@@ -23,13 +29,15 @@ const WELCOME_MESSAGE: ChatMessage = {
     "Hi, I'm your volunteering assistant. Ask me anything about finding opportunities or about your profile.",
 };
 
-export function ChatAssistant() {
+export function ChatAssistant({ opportunities }: ChatAssistantProps) {
   const [showHint, setShowHint] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [isBotTyping, setIsBotTyping] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
   const [profileSent, setProfileSent] = useState(false);
+  // Track IDs of opportunities already shown so we never repeat them
+  const [shownOppIds, setShownOppIds] = useState<Set<string>>(new Set());
   const panelRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -68,10 +76,27 @@ export function ChatAssistant() {
     [],
   );
 
+  // Convert MatchedOpportunity[] → OpportunityResult[] once (memoised)
+  const opportunityResults: OpportunityResult[] = useMemo(
+    () =>
+      opportunities.map((m) => ({
+        id: m.opportunity.id,
+        title: m.opportunity.title,
+        organisationName: m.opportunity.organisationName,
+        description:
+          m.opportunity.description.length > 200
+            ? `${m.opportunity.description.slice(0, 200).trimEnd()}…`
+            : m.opportunity.description,
+        distanceText: m.distanceText,
+        applyLink: m.opportunity.applyLink,
+      })),
+    [opportunities],
+  );
+
   const callChatApi = useCallback(
     async (allMessages: ChatMessage[]) => {
       const conversation = buildConversation(allMessages);
-      const body: ChatRequestBody = { conversation };
+      const body: ChatRequestBody = { conversation, opportunities: opportunityResults };
 
       if (!profileSent && chatProfile) {
         body.profile = chatProfile;
@@ -90,7 +115,7 @@ export function ChatAssistant() {
 
       return (await res.json()) as ChatResponseBody;
     },
-    [buildConversation, chatProfile, profileSent],
+    [buildConversation, chatProfile, profileSent, opportunityResults],
   );
 
   const sendUserMessage = useCallback(
@@ -111,18 +136,50 @@ export function ChatAssistant() {
       try {
         const data = await callChatApi(updatedMessages);
         if (data.opportunities?.length) {
+          // Filter out opportunities the user has already seen in this session
+          const unseenOpps = data.opportunities.filter(
+            (o) => !shownOppIds.has(o.id),
+          );
+
+          // Pick which batch to show: unseen first, fall back to full list if all seen
+          const BATCH_SIZE = 3;
+          let displayOpps: typeof data.opportunities;
+          let allExhausted = false;
+
+          if (unseenOpps.length > 0) {
+            displayOpps = unseenOpps.slice(0, BATCH_SIZE);
+          } else {
+            // All opportunities have been shown before — cycle back
+            displayOpps = data.opportunities.slice(0, BATCH_SIZE);
+            allExhausted = true;
+          }
+
+          // Record these as shown
+          setShownOppIds((prev) => {
+            const next = new Set(prev);
+            for (const o of displayOpps) next.add(o.id);
+            return next;
+          });
+
+          // Split GPT reply on "---" separator: intro (above cards) + follow-up (below cards).
+          const parts = data.reply.split(/\n*---\n*/);
+          let introText = (parts[0] ?? data.reply).trim();
+          let followUpText = (parts[1] ?? "").trim();
+
+          // If we've exhausted all results, override the follow-up to let the user know
+          if (allExhausted) {
+            followUpText = "I've now shown you all the available opportunities in your area. Would you like me to search a different location?";
+          }
+
           const introMsg: ChatMessage = {
             id: `assistant-intro-${Date.now()}`,
             role: "assistant",
-            content: "Here are a few opportunities that match your profile and preferences.",
-            opportunities: data.opportunities,
+            content: introText,
+            followUp: followUpText || undefined,
+            // Store only the batch to display (not the full list)
+            opportunities: displayOpps,
           };
-          const followUpMsg: ChatMessage = {
-            id: `assistant-followup-${Date.now() + 1}`,
-            role: "assistant",
-            content: "Do any of these opportunities interest you, or would you like refined options?",
-          };
-          setMessages((prev) => [...prev, introMsg, followUpMsg]);
+          setMessages((prev) => [...prev, introMsg]);
         } else {
           const botMsg: ChatMessage = {
             id: `assistant-${Date.now()}`,
@@ -198,7 +255,7 @@ export function ChatAssistant() {
 
                   {msg.opportunities && msg.opportunities.length > 0 && (
                     <div className="space-y-2 pl-1">
-                      {msg.opportunities.slice(0, 3).map((opp) => (
+                      {msg.opportunities.map((opp) => (
                         <article
                           key={opp.id}
                           className="rounded-lg border border-blue-100 bg-white p-3 shadow-sm"
@@ -229,7 +286,16 @@ export function ChatAssistant() {
                             )}
                           </div>
                         </article>
-                      ))}
+                        ))}
+                    </div>
+                  )}
+
+                  {/* Follow-up text shown AFTER opportunity cards */}
+                  {msg.followUp && (
+                    <div className="flex justify-start">
+                      <p className="max-w-[85%] rounded-2xl rounded-bl-md border border-blue-100 bg-white px-3 py-2 text-sm leading-relaxed text-slate-700">
+                        {msg.followUp}
+                      </p>
                     </div>
                   )}
                 </div>
