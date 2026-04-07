@@ -182,7 +182,6 @@ export async function POST(request: Request) {
 
     const responseBody: ChatResponseBody = {
       reply,
-      // Return the full client opportunity set when GPT triggered the tool
       opportunities: shouldReturnOpportunities ? clientOpportunities : undefined,
     };
 

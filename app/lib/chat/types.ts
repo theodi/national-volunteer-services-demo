@@ -51,7 +51,10 @@ export interface OpportunityResult {
   id: string;
   title: string;
   organisationName: string;
+  /** Truncated description for GPT context / card display. */
   description: string;
+  /** Full untruncated description for tooltip on hover. */
+  fullDescription?: string;
   distanceText: string;
   applyLink?: string;
 }

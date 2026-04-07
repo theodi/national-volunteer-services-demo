@@ -76,20 +76,26 @@ export function ChatAssistant({ opportunities }: ChatAssistantProps) {
     [],
   );
 
-  // Convert MatchedOpportunity[] → OpportunityResult[] once (memoised)
+  // Convert MatchedOpportunity[] → OpportunityResult[] once (memoised).
+  // Descriptions are truncated to 300 chars for GPT context / card display.
+  // The full description is kept for the hover tooltip.
   const opportunityResults: OpportunityResult[] = useMemo(
     () =>
-      opportunities.map((m) => ({
-        id: m.opportunity.id,
-        title: m.opportunity.title,
-        organisationName: m.opportunity.organisationName,
-        description:
-          m.opportunity.description.length > 200
-            ? `${m.opportunity.description.slice(0, 200).trimEnd()}…`
-            : m.opportunity.description,
-        distanceText: m.distanceText,
-        applyLink: m.opportunity.applyLink,
-      })),
+      opportunities.map((m) => {
+        const full = m.opportunity.description;
+        return {
+          id: m.opportunity.id,
+          title: m.opportunity.title,
+          organisationName: m.opportunity.organisationName,
+          description:
+            full.length > 300
+              ? `${full.slice(0, 300).trimEnd()}…`
+              : full,
+          fullDescription: full,
+          distanceText: m.distanceText,
+          applyLink: m.opportunity.applyLink,
+        };
+      }),
     [opportunities],
   );
 
@@ -213,7 +219,7 @@ export function ChatAssistant({ opportunities }: ChatAssistantProps) {
           <section
             ref={panelRef}
             aria-label="Chat assistant"
-            className="absolute bottom-18 right-0 w-[min(380px,92vw)] overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-2xl"
+            className="absolute bottom-18 right-0 w-[min(440px,92vw)] overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-2xl"
           >
             <header className="flex items-center justify-between bg-blue-custom px-4 py-3 text-white">
               <div className="flex items-center gap-2">
@@ -233,7 +239,7 @@ export function ChatAssistant({ opportunities }: ChatAssistantProps) {
             <div
               aria-live="polite"
               aria-relevant="additions"
-              className="max-h-[340px] space-y-3 overflow-y-auto bg-linear-to-b from-blue-50/40 to-white px-4 py-4"
+              className="max-h-[420px] space-y-3 overflow-y-auto bg-linear-to-b from-blue-50/40 to-white px-4 py-4"
             >
               {messages.map((msg) => (
                 <div key={msg.id} className="space-y-2">
@@ -258,20 +264,23 @@ export function ChatAssistant({ opportunities }: ChatAssistantProps) {
                       {msg.opportunities.map((opp) => (
                         <article
                           key={opp.id}
-                          className="rounded-lg border border-blue-100 bg-white p-3 shadow-sm"
+                          className="rounded-lg border border-blue-100 bg-white p-4 shadow-sm"
                         >
-                          <h4 className="text-xs font-bold text-blue-custom leading-tight">
+                          <h4 className="text-sm font-bold text-blue-custom leading-tight">
                             {opp.title}
                           </h4>
-                          <p className="mt-0.5 text-[11px] text-slate-500">
+                          <p className="mt-0.5 text-xs text-slate-500">
                             {opp.organisationName}
                           </p>
-                          <p className="mt-1 text-[11px] leading-relaxed text-slate-600 line-clamp-2">
+                          <p
+                            className="mt-1.5 text-xs leading-relaxed text-slate-600 line-clamp-3 cursor-help"
+                            title={opp.fullDescription ?? opp.description}
+                          >
                             {opp.description}
                           </p>
-                          <div className="mt-2 flex items-center justify-between">
-                            <span className="flex items-center gap-1 text-[10px] text-slate-400">
-                              <MapPinIcon className="h-3 w-3" aria-hidden />
+                          <div className="mt-2.5 flex items-center justify-between">
+                            <span className="flex items-center gap-1 text-[11px] text-slate-400">
+                              <MapPinIcon className="h-3.5 w-3.5" aria-hidden />
                               {opp.distanceText}
                             </span>
                             {opp.applyLink && (
@@ -279,7 +288,7 @@ export function ChatAssistant({ opportunities }: ChatAssistantProps) {
                                 href={opp.applyLink}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="rounded bg-blue-custom px-2 py-1 text-[10px] font-semibold text-white hover:brightness-95"
+                                className="rounded bg-blue-custom px-2.5 py-1 text-[11px] font-semibold text-white hover:brightness-95"
                               >
                                 Apply
                               </a>
